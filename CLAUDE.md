@@ -35,7 +35,7 @@ Humans guide direction only by editing `memories/consensus.md` under "Next Actio
 **Project structure rule:** each project lives under `projects/<project-name>/` as a monorepo. Multi-component projects nest components inside the project folder - component folders must NOT repeat the parent name:
 ```
 projects/
-  devfeed/               ← project root (maps to omergeiger/devfeed on GitHub)
+  devfeed/               ← project root (maps to $GITHUB_USER/devfeed on GitHub)
     workers/             ← CF Worker component
     pages/               ← CF Pages component
     python-prototype/    ← reference prototype
@@ -46,7 +46,7 @@ projects/
 ```json
 {
   "name": "<project-name>",
-  "repo": "omergeiger/<project-name>",
+  "repo": "<project-name>",
   "artifacts_branch": "<project-name>",
   "components": ["<component1>", "<component2>"]
 }
@@ -154,6 +154,8 @@ Key authenticated tools:
 | `curl`/`jq` | Available | HTTP + JSON processing |
 
 Need other tools? Install directly with `npm install -g`, `uv tool install`, or `brew install`.
+
+**Cloudflare Pages note:** CF Pages is deployed via direct upload (`wrangler pages deploy`), not connected to GitHub. Pushing to GitHub does NOT trigger a Pages redeployment. After any frontend change to a `pages/` component, run `wrangler pages deploy` manually from the `pages/` directory.
 
 ## Skills Arsenal
 

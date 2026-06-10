@@ -31,6 +31,7 @@
 #   AUTO_LOOP_PROTECT_GITIGNORE=1
 #                               # Restore .gitignore if a cycle mutates it
 #   SINGLE_CYCLE=1              # Run exactly one cycle then exit cleanly
+#   GITHUB_USER=omergeiger      # GitHub account owner for project repos
 # ============================================================
 
 set -euo pipefail
@@ -38,6 +39,12 @@ set -euo pipefail
 # === Resolve project root (always relative to this script) ===
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Source project-level config (sets GITHUB_USER and other vars)
+if [ -f "$PROJECT_DIR/config/auto-company.env" ]; then
+    # shellcheck source=/dev/null
+    . "$PROJECT_DIR/config/auto-company.env"
+fi
 
 LOG_DIR="$PROJECT_DIR/logs"
 CONSENSUS_FILE="$PROJECT_DIR/memories/consensus.md"
@@ -65,6 +72,7 @@ SINGLE_CYCLE="${SINGLE_CYCLE:-1}"
 ARTIFACTS_BRANCH="${ARTIFACTS_BRANCH:-devfeed}"
 ARTIFACTS_WORKTREE="$PROJECT_DIR/.worktrees/${ARTIFACTS_BRANCH}"
 PROJECTS_DIR="$PROJECT_DIR/projects"
+GITHUB_USER="${GITHUB_USER:-}"
 RESOLVED_ENGINE_BIN=""
 
 if [ "$ENGINE" != "claude" ] && [ "$ENGINE" != "codex" ]; then
@@ -263,10 +271,22 @@ setup_project_repos() {
         repo=$(jq -r '.repo' "$project_json" 2>/dev/null) || continue
         artifacts_branch=$(jq -r 'if .artifacts_branch != null then .artifacts_branch else .name end' "$project_json" 2>/dev/null || echo "$project_name")
 
+        # Derive full owner/repo from .project.json repo field
+        case "$repo" in
+            */*) full_repo="$repo" ;;
+            *)
+                if [ -z "$GITHUB_USER" ]; then
+                    log "WARN PROJECT[$project_name]: GITHUB_USER not set; skipping repo $repo"
+                    continue
+                fi
+                full_repo="${GITHUB_USER}/${repo}"
+                ;;
+        esac
+
         # Ensure GitHub repo exists
-        if ! gh repo view "$repo" >/dev/null 2>&1; then
-            log "PROJECT[$project_name]: Creating GitHub repo $repo"
-            gh repo create "$repo" --private 2>/dev/null || true
+        if ! gh repo view "$full_repo" >/dev/null 2>&1; then
+            log "PROJECT[$project_name]: Creating GitHub repo $full_repo"
+            gh repo create "$full_repo" --private 2>/dev/null || true
         fi
 
         # Ensure git is initialized in project dir
@@ -276,15 +296,16 @@ setup_project_repos() {
 
         # Ensure remote is wired
         if ! git -C "$project_dir" remote get-url origin >/dev/null 2>&1; then
-            git -C "$project_dir" remote add origin "https://github.com/${repo}.git" 2>/dev/null || true
-            log "PROJECT[$project_name]: Wired git remote → $repo"
+            git -C "$project_dir" remote add origin "https://github.com/${full_repo}.git" 2>/dev/null || true
+            log "PROJECT[$project_name]: Wired git remote → $full_repo"
         fi
 
-        # Ensure artifacts worktree exists
+        # Ensure artifacts worktree exists (check local and remote refs after fresh clone)
         worktree="$PROJECT_DIR/.worktrees/$artifacts_branch"
         if [ ! -f "$worktree/.git" ]; then
             mkdir -p "$PROJECT_DIR/.worktrees"
-            if git show-ref --verify --quiet "refs/heads/$artifacts_branch" 2>/dev/null; then
+            if git show-ref --verify --quiet "refs/heads/$artifacts_branch" 2>/dev/null || \
+               git show-ref --verify --quiet "refs/remotes/origin/$artifacts_branch" 2>/dev/null; then
                 git worktree add "$worktree" "$artifacts_branch" 2>/dev/null || true
             else
                 git worktree add --orphan -b "$artifacts_branch" "$worktree" 2>/dev/null || true
@@ -299,12 +320,17 @@ commit_project_changes() {
     local cycle_status="$2"
     command -v jq >/dev/null 2>&1 || return 0
 
-    local project_json project_dir project_name repo changes
+    local project_json project_dir project_name repo full_repo changes
     while IFS= read -r project_json; do
         [ -f "$project_json" ] || continue
         project_dir="$(dirname "$project_json")"
         project_name=$(jq -r '.name' "$project_json" 2>/dev/null) || continue
         repo=$(jq -r '.repo' "$project_json" 2>/dev/null) || continue
+
+        case "$repo" in
+            */*) full_repo="$repo" ;;
+            *) full_repo="${GITHUB_USER:+${GITHUB_USER}/}${repo}" ;;
+        esac
 
         git -C "$project_dir" remote get-url origin >/dev/null 2>&1 || continue
 
@@ -315,8 +341,29 @@ commit_project_changes() {
         git -C "$project_dir" diff --cached --quiet 2>/dev/null && continue
         git -C "$project_dir" commit -m "cycle #${cycle_num} [${cycle_status}] $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null || true
         git -C "$project_dir" push origin HEAD 2>/dev/null || true
-        log_cycle "$cycle_num" "PROJECT" "Committed changes to $project_name → $repo"
+        log_cycle "$cycle_num" "PROJECT" "Committed changes to $project_name → $full_repo"
     done < <(scan_projects)
+}
+
+register_new_projects() {
+    local cycle_num="$1"
+    command -v jq >/dev/null 2>&1 || return 0
+
+    local dir project_name
+    while IFS= read -r -d '' dir; do
+        [ -f "$dir/.project.json" ] && continue
+        project_name="$(basename "$dir")"
+        log "PROJECT: Auto-registering new project dir '$project_name'"
+        jq -n \
+            --arg name "$project_name" \
+            --arg repo "$project_name" \
+            --arg branch "$project_name" \
+            '{"name": $name, "repo": $repo, "artifacts_branch": $branch, "components": []}' \
+            > "$dir/.project.json" 2>/dev/null || true
+        log_cycle "$cycle_num" "PROJECT" "Created .project.json for $project_name"
+    done < <(find "$PROJECTS_DIR" -maxdepth 1 -mindepth 1 -type d -print0 2>/dev/null)
+
+    setup_project_repos
 }
 
 commit_artifacts() {
@@ -854,6 +901,7 @@ This is Cycle #$loop_count. Act decisively."
     else
         _artifact_status="fail"
     fi
+    register_new_projects "$loop_count"
     commit_project_changes "$loop_count" "$_artifact_status"
     commit_artifacts "$loop_count" "$_artifact_status"
 
