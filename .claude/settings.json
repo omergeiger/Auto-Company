@@ -3,7 +3,14 @@
     "defaultMode": "bypassPermissions",
     "allow": ["WebSearch", "Bash", "Edit", "Write", "WebFetch", "NotebookEdit", "Skill"],
     "ask": [],
-    "deny": []
+    "deny": [
+      "Bash(gh repo delete:*)",
+      "Bash(wrangler delete:*)",
+      "Bash(rm -rf /:*)",
+      "Bash(rm -rf ~:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)"
+    ]
   },
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
