@@ -177,6 +177,9 @@ tasks
 # Local Claude Code overrides (trial-only permission denies)
 .claude/settings.local.json
 
+# Git worktrees for artifact branches
+.worktrees/
+
 # ====================
 # Docs & Memory
 # ====================
