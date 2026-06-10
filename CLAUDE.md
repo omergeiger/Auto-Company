@@ -35,11 +35,11 @@ Humans guide direction only by editing `memories/consensus.md` under "Next Actio
 **Project structure rule:** each project lives under `projects/<project-name>/` as a monorepo. Multi-component projects nest components inside the project folder - component folders must NOT repeat the parent name:
 ```
 projects/
-  devfeed/               ← project root (maps to $GITHUB_USER/devfeed on GitHub)
+  myapp/                 ← project root (maps to $GITHUB_USER/myapp on GitHub)
     workers/             ← CF Worker component
     pages/               ← CF Pages component
-    python-prototype/    ← reference prototype
-  snapog/                ← single-component project
+    prototype/           ← reference prototype
+  another/               ← single-component project
 ```
 
 **Project registration:** every project folder must contain a `.project.json` at its root:
@@ -47,7 +47,6 @@ projects/
 {
   "name": "<project-name>",
   "repo": "<project-name>",
-  "artifacts_branch": "<project-name>",
   "components": ["<component1>", "<component2>"]
 }
 ```

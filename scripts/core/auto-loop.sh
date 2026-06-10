@@ -343,8 +343,7 @@ register_new_projects() {
         jq -n \
             --arg name "$project_name" \
             --arg repo "$project_name" \
-            --arg branch "$project_name" \
-            '{"name": $name, "repo": $repo, "artifacts_branch": $branch, "components": []}' \
+            '{"name": $name, "repo": $repo, "components": []}' \
             > "$dir/.project.json" 2>/dev/null || true
         log_cycle "$cycle_num" "PROJECT" "Created .project.json for $project_name"
     done < <(find "$PROJECTS_DIR" -maxdepth 1 -mindepth 1 -type d -print0 2>/dev/null)

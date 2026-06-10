@@ -20,7 +20,7 @@ A finer-grained intervention point than SINGLE_CYCLE:
 ### Gap 3. Cloudflare Pages requires manual redeployment
 CF Pages is deployed via direct upload (`wrangler pages deploy`), not connected to GitHub auto-deploy:
 - Pushing frontend changes to GitHub does NOT redeploy the Pages site
-- After any change to a `pages/` component, run: `cd projects/devfeed/pages && wrangler pages deploy .`
+- After any change to a `pages/` component, run: `cd projects/<name>/pages && wrangler pages deploy .`
 - This is a Cloudflare configuration gap, not a framework constraint
 - Tracked in `CLAUDE.md` under Tooling as a standing reminder
 
