@@ -180,11 +180,6 @@ tasks
 # Git worktrees for artifact branches
 .worktrees/
 
-# Research/session screenshots (belong on artifacts branch, not main)
-*.png
-*.jpg
-*.jpeg
-
 # ====================
 # Docs & Memory
 # ====================
