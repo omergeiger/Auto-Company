@@ -51,7 +51,24 @@ projects/
   "components": ["<component1>", "<component2>"]
 }
 ```
-The framework auto-loop reads `.project.json` at startup to create GitHub repos, wire git remotes, and set up artifact tracking. Create this file before the first cycle works on a new project.
+The framework auto-loop reads `.project.json` at startup to create GitHub repos and wire git remotes. Create this file before the first cycle works on a new project.
+
+**One-project-per-branch rule:** Each company run branch targets exactly one active project. Do not create a second `projects/` folder on an active branch. To start a new project, branch from `main` first.
+
+**Usage model:** Fork this repo for a new company. Branch from `main` for a new project run within the same company.
+
+**Tracking folder:** Auto-company artifacts for each run are stored inside the project repo:
+```
+projects/<name>/
+  auto-company-tracking/
+    docs/                   <- agent outputs (mirrors docs/)
+    memories/
+      consensus.md          <- baton snapshot, updated each cycle
+    logs/
+      auto-loop.log
+      cycle-NNNN-YYYYMMDD-HHMMSS.log
+    .auto-loop-state        <- loop counter, last status
+```
 
 ## Team Architecture
 
@@ -155,8 +172,6 @@ Key authenticated tools:
 
 Need other tools? Install directly with `npm install -g`, `uv tool install`, or `brew install`.
 
-**Cloudflare Pages note:** CF Pages is deployed via direct upload (`wrangler pages deploy`), not connected to GitHub. Pushing to GitHub does NOT trigger a Pages redeployment. After any frontend change to a `pages/` component, run `wrangler pages deploy` manually from the `pages/` directory.
-
 ## Skills Arsenal
 
 All skills are under `.claude/skills/`. Any agent can use any skill when relevant.
@@ -206,7 +221,7 @@ All skills are under `.claude/skills/`. Any agent can use any skill when relevan
 - `memories/consensus.md` - cross-cycle baton; must be updated before cycle end
 - `docs/<role>/` - agent outputs
 - `projects/<name>/` - project monorepos; each has its own GitHub repo and git history
-- Artifact history (docs, logs, consensus) committed to `<project>` branch in this repo after each cycle
+- Artifact history (docs, logs, consensus) synced to `projects/<name>/auto-company-tracking/` each cycle
 
 ## Communication Norms
 

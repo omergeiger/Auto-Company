@@ -62,7 +62,7 @@ Before the cycle ends, you **must** update `memories/consensus.md` using this fo
 
 1. **Cycle 1**: Brainstorm — each agent pitches one idea, end by ranking the top 3.
 2. **Cycle 2**: Pick #1. `critic-munger` runs a Pre-Mortem, `research-thompson` validates the market, `cfo-campbell` runs the numbers. Conclude with GO / NO-GO.
-3. **Cycle 3+**: GO → create the repo and start writing code — no more discussion. NO-GO → try #2; if nothing passes, force-pick one and build it. New projects must be created under `projects/<name>/` as a monorepo (follow the project structure rule in `CLAUDE.md`). Create a `.project.json` at the project root to register it with the framework before the first cycle writes code.
+3. **Cycle 3+**: GO → create the repo and start writing code — no more discussion. NO-GO → try #2; if nothing passes, force-pick one and build it. New projects must be created under `projects/<name>/` as a monorepo (follow the project structure rule in `CLAUDE.md`). Create a `.project.json` at the project root to register it with the framework before the first cycle writes code. **One project per branch** - if a `projects/` folder already exists on this branch, build on it. To start a second project, branch from `main` first.
 4. **Every cycle after Cycle 2 must produce a tangible artifact** (file, repo, deployment) — pure discussion is forbidden.
 5. **Same Next Action appearing two cycles in a row** → you are stuck; change direction or narrow scope and ship something.
 6. **Any frontend deliverable** (page, UI, component, dashboard, marketing site) → you must apply `frontend-design.md` first to ensure visual and interaction quality. Generic default output is not acceptable.

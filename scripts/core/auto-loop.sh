@@ -32,6 +32,7 @@
 #                               # Restore .gitignore if a cycle mutates it
 #   SINGLE_CYCLE=1              # Run exactly one cycle then exit cleanly
 #   GITHUB_USER=omergeiger      # GitHub account owner for project repos
+#   ACTIVE_PROJECT=             # Active project name (empty on main; set on run branches)
 # ============================================================
 
 set -euo pipefail
@@ -69,8 +70,7 @@ LIMIT_WAIT_SECONDS="${LIMIT_WAIT_SECONDS:-3600}"
 MAX_LOGS="${MAX_LOGS:-200}"
 AUTO_LOOP_PROTECT_GITIGNORE="${AUTO_LOOP_PROTECT_GITIGNORE:-1}"
 SINGLE_CYCLE="${SINGLE_CYCLE:-1}"
-ARTIFACTS_BRANCH="${ARTIFACTS_BRANCH:-devfeed}"
-ARTIFACTS_WORKTREE="$PROJECT_DIR/.worktrees/${ARTIFACTS_BRANCH}"
+ACTIVE_PROJECT="${ACTIVE_PROJECT:-}"
 PROJECTS_DIR="$PROJECT_DIR/projects"
 GITHUB_USER="${GITHUB_USER:-}"
 RESOLVED_ENGINE_BIN=""
@@ -263,13 +263,12 @@ setup_project_repos() {
     command -v jq >/dev/null 2>&1 || { log "WARN: jq not found, skipping project repo setup"; return; }
     command -v gh >/dev/null 2>&1 || { log "WARN: gh not found, skipping GitHub repo setup"; return; }
 
-    local project_json project_dir project_name repo artifacts_branch worktree
+    local project_json project_dir project_name repo
     while IFS= read -r project_json; do
         [ -f "$project_json" ] || continue
         project_dir="$(dirname "$project_json")"
         project_name=$(jq -r '.name' "$project_json" 2>/dev/null) || continue
         repo=$(jq -r '.repo' "$project_json" 2>/dev/null) || continue
-        artifacts_branch=$(jq -r 'if .artifacts_branch != null then .artifacts_branch else .name end' "$project_json" 2>/dev/null || echo "$project_name")
 
         # Derive full owner/repo from .project.json repo field
         case "$repo" in
@@ -298,19 +297,6 @@ setup_project_repos() {
         if ! git -C "$project_dir" remote get-url origin >/dev/null 2>&1; then
             git -C "$project_dir" remote add origin "https://github.com/${full_repo}.git" 2>/dev/null || true
             log "PROJECT[$project_name]: Wired git remote → $full_repo"
-        fi
-
-        # Ensure artifacts worktree exists (check local and remote refs after fresh clone)
-        worktree="$PROJECT_DIR/.worktrees/$artifacts_branch"
-        if [ ! -f "$worktree/.git" ]; then
-            mkdir -p "$PROJECT_DIR/.worktrees"
-            if git show-ref --verify --quiet "refs/heads/$artifacts_branch" 2>/dev/null || \
-               git show-ref --verify --quiet "refs/remotes/origin/$artifacts_branch" 2>/dev/null; then
-                git worktree add "$worktree" "$artifacts_branch" 2>/dev/null || true
-            else
-                git worktree add --orphan -b "$artifacts_branch" "$worktree" 2>/dev/null || true
-            fi
-            log "PROJECT[$project_name]: Set up artifacts worktree (branch: $artifacts_branch)"
         fi
     done < <(scan_projects)
 }
@@ -362,36 +348,22 @@ register_new_projects() {
             > "$dir/.project.json" 2>/dev/null || true
         log_cycle "$cycle_num" "PROJECT" "Created .project.json for $project_name"
     done < <(find "$PROJECTS_DIR" -maxdepth 1 -mindepth 1 -type d -print0 2>/dev/null)
-
-    setup_project_repos
 }
 
-commit_artifacts() {
+sync_artifacts() {
     local cycle_num="$1"
     local cycle_status="$2"
-    local branch="${3:-$ARTIFACTS_BRANCH}"
-    local worktree="${4:-$PROJECT_DIR/.worktrees/$branch}"
+    [ -n "$ACTIVE_PROJECT" ] || return 0
 
-    [ -f "$worktree/.git" ] || return 0
+    local tracking_dir="$PROJECTS_DIR/$ACTIVE_PROJECT/auto-company-tracking"
+    mkdir -p "$tracking_dir/docs" "$tracking_dir/logs" "$tracking_dir/memories"
 
-    mkdir -p "$worktree/docs" "$worktree/logs" "$worktree/memories"
+    rsync -a "$PROJECT_DIR/docs/" "$tracking_dir/docs/" 2>/dev/null || true
+    rsync -a "$LOG_DIR/" "$tracking_dir/logs/" 2>/dev/null || true
+    [ -f "$CONSENSUS_FILE" ] && cp "$CONSENSUS_FILE" "$tracking_dir/memories/consensus.md"
+    [ -f "$STATE_FILE" ] && cp "$STATE_FILE" "$tracking_dir/.auto-loop-state"
 
-    rsync -a "$PROJECT_DIR/docs/" "$worktree/docs/" 2>/dev/null || true
-    rsync -a "$PROJECT_DIR/logs/" "$worktree/logs/" 2>/dev/null || true
-    [ -f "$PROJECT_DIR/memories/consensus.md" ] && \
-        cp "$PROJECT_DIR/memories/consensus.md" "$worktree/memories/consensus.md"
-    [ -f "$PROJECT_DIR/.auto-loop-state" ] && \
-        cp "$PROJECT_DIR/.auto-loop-state" "$worktree/.auto-loop-state"
-
-    (
-        cd "$worktree" || return
-        git add docs/ logs/ memories/consensus.md .auto-loop-state 2>/dev/null || true
-        git diff --cached --quiet 2>/dev/null && return
-        git commit -m "cycle #${cycle_num} [${cycle_status}] $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null || true
-        git push origin "$branch" 2>/dev/null || true
-    )
-
-    log_cycle "$cycle_num" "ARTIFACTS" "Committed to $branch branch"
+    log_cycle "$cycle_num" "SYNC" "Artifacts synced to $ACTIVE_PROJECT/auto-company-tracking"
 }
 
 backup_consensus() {
@@ -781,6 +753,18 @@ log "Single-cycle mode: $SINGLE_CYCLE"
 # === Project Repo Setup ===
 setup_project_repos
 
+# === Active Project Guard ===
+_project_count=$(scan_projects | wc -l | tr -d ' ')
+if [ -z "$ACTIVE_PROJECT" ] && [ "$_project_count" -gt 1 ]; then
+    log "Error: Multiple projects found but ACTIVE_PROJECT is not set."
+    log "Set ACTIVE_PROJECT in config/auto-company.env and restart."
+    exit 1
+fi
+if [ -z "$ACTIVE_PROJECT" ] && [ "$_project_count" -eq 1 ]; then
+    ACTIVE_PROJECT=$(jq -r '.name' "$(scan_projects)" 2>/dev/null || true)
+    log "ACTIVE_PROJECT auto-set to: $ACTIVE_PROJECT"
+fi
+
 # === Main Loop ===
 
 while true; do
@@ -877,7 +861,6 @@ This is Cycle #$loop_count. Act decisively."
         # Check for usage limit
         if check_usage_limit "$OUTPUT"; then
             log_cycle "$loop_count" "LIMIT" "API usage limit detected. Waiting ${LIMIT_WAIT_SECONDS}s..."
-            commit_artifacts "$loop_count" "limit"
             save_state "waiting_limit"
             sleep "$LIMIT_WAIT_SECONDS"
             error_count=0
@@ -902,8 +885,8 @@ This is Cycle #$loop_count. Act decisively."
         _artifact_status="fail"
     fi
     register_new_projects "$loop_count"
+    sync_artifacts "$loop_count" "$_artifact_status"
     commit_project_changes "$loop_count" "$_artifact_status"
-    commit_artifacts "$loop_count" "$_artifact_status"
 
     save_state "idle"
 
