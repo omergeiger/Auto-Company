@@ -32,7 +32,8 @@
 #                               # Restore .gitignore if a cycle mutates it
 #   SINGLE_CYCLE=1              # Run exactly one cycle then exit cleanly
 #   GITHUB_USER=omergeiger      # GitHub account owner for project repos
-#   ACTIVE_PROJECT=             # Active project name (empty on main; set on run branches)
+#   ACTIVE_PROJECT=             # Active project name; auto-detected if only one project exists.
+#                               # For multiple projects, set in config/auto-company.local.env (gitignored).
 # ============================================================
 
 set -euo pipefail
@@ -45,6 +46,12 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 if [ -f "$PROJECT_DIR/config/auto-company.env" ]; then
     # shellcheck source=/dev/null
     . "$PROJECT_DIR/config/auto-company.env"
+fi
+
+# Source local overrides (gitignored; set ACTIVE_PROJECT here when running multiple projects)
+if [ -f "$PROJECT_DIR/config/auto-company.local.env" ]; then
+    # shellcheck source=/dev/null
+    . "$PROJECT_DIR/config/auto-company.local.env"
 fi
 
 LOG_DIR="$PROJECT_DIR/logs"

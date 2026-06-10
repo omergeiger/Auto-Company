@@ -177,6 +177,9 @@ tasks
 # Local Claude Code overrides
 .claude/settings.local.json
 
+# Local loop config (set ACTIVE_PROJECT here for multi-project setups)
+config/auto-company.local.env
+
 # Git worktrees for artifact branches
 .worktrees/
 
