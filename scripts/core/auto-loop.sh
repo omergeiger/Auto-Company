@@ -60,6 +60,8 @@ COOLDOWN_SECONDS="${COOLDOWN_SECONDS:-300}"
 LIMIT_WAIT_SECONDS="${LIMIT_WAIT_SECONDS:-3600}"
 MAX_LOGS="${MAX_LOGS:-200}"
 AUTO_LOOP_PROTECT_GITIGNORE="${AUTO_LOOP_PROTECT_GITIGNORE:-1}"
+ARTIFACTS_BRANCH="${ARTIFACTS_BRANCH:-devfeed}"
+ARTIFACTS_WORKTREE="$PROJECT_DIR/.worktrees/${ARTIFACTS_BRANCH}"
 RESOLVED_ENGINE_BIN=""
 
 if [ "$ENGINE" != "claude" ] && [ "$ENGINE" != "codex" ]; then
@@ -240,6 +242,33 @@ cleanup_accidental_root_artifacts() {
     if [ "$removed" -gt 0 ]; then
         log_cycle "$loop_count" "GUARD" "Removed accidental root zero-byte artifact(s): $removed_names"
     fi
+}
+
+commit_artifacts() {
+    local cycle_num="$1"
+    local cycle_status="$2"
+    local worktree="$ARTIFACTS_WORKTREE"
+
+    [ -f "$worktree/.git" ] || return 0
+
+    mkdir -p "$worktree/docs" "$worktree/logs" "$worktree/memories"
+
+    rsync -a "$PROJECT_DIR/docs/" "$worktree/docs/" 2>/dev/null || true
+    rsync -a "$PROJECT_DIR/logs/" "$worktree/logs/" 2>/dev/null || true
+    [ -f "$PROJECT_DIR/memories/consensus.md" ] && \
+        cp "$PROJECT_DIR/memories/consensus.md" "$worktree/memories/consensus.md"
+    [ -f "$PROJECT_DIR/.auto-loop-state" ] && \
+        cp "$PROJECT_DIR/.auto-loop-state" "$worktree/.auto-loop-state"
+
+    (
+        cd "$worktree" || return
+        git add docs/ logs/ memories/consensus.md .auto-loop-state 2>/dev/null || true
+        git diff --cached --quiet 2>/dev/null && return
+        git commit -m "cycle #${cycle_num} [${cycle_status}] $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null || true
+        git push origin "$ARTIFACTS_BRANCH" 2>/dev/null || true
+    )
+
+    log_cycle "$cycle_num" "ARTIFACTS" "Committed to $ARTIFACTS_BRANCH branch"
 }
 
 backup_consensus() {
@@ -721,6 +750,7 @@ This is Cycle #$loop_count. Act decisively."
         # Check for usage limit
         if check_usage_limit "$OUTPUT"; then
             log_cycle "$loop_count" "LIMIT" "API usage limit detected. Waiting ${LIMIT_WAIT_SECONDS}s..."
+            commit_artifacts "$loop_count" "limit"
             save_state "waiting_limit"
             sleep "$LIMIT_WAIT_SECONDS"
             error_count=0
@@ -736,6 +766,15 @@ This is Cycle #$loop_count. Act decisively."
             log "Circuit breaker reset. Resuming..."
         fi
     fi
+
+    if [ "$cycle_soft_timeout" -eq 1 ]; then
+        _artifact_status="ok:timeout"
+    elif [ -z "$cycle_failed_reason" ]; then
+        _artifact_status="ok"
+    else
+        _artifact_status="fail"
+    fi
+    commit_artifacts "$loop_count" "$_artifact_status"
 
     save_state "idle"
     log_cycle "$loop_count" "WAIT" "Sleeping ${LOOP_INTERVAL}s before next cycle..."
