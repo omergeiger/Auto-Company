@@ -350,6 +350,14 @@ register_new_projects() {
     done < <(find "$PROJECTS_DIR" -maxdepth 1 -mindepth 1 -type d -print0 2>/dev/null)
 }
 
+save_consensus_snapshot() {
+    local cycle_num="$1"
+    [ -f "$CONSENSUS_FILE" ] || return 0
+    local snapshot_dir
+    snapshot_dir="$(dirname "$CONSENSUS_FILE")"
+    cp "$CONSENSUS_FILE" "$snapshot_dir/consensus-step-$(printf '%04d' "$cycle_num").md"
+}
+
 sync_artifacts() {
     local cycle_num="$1"
     local cycle_status="$2"
@@ -360,7 +368,7 @@ sync_artifacts() {
 
     rsync -a "$PROJECT_DIR/docs/" "$tracking_dir/docs/" 2>/dev/null || true
     rsync -a "$LOG_DIR/" "$tracking_dir/logs/" 2>/dev/null || true
-    [ -f "$CONSENSUS_FILE" ] && cp "$CONSENSUS_FILE" "$tracking_dir/memories/consensus.md"
+    rsync -a "$(dirname "$CONSENSUS_FILE")/" "$tracking_dir/memories/" 2>/dev/null || true
     [ -f "$STATE_FILE" ] && cp "$STATE_FILE" "$tracking_dir/.auto-loop-state"
 
     log_cycle "$cycle_num" "SYNC" "Artifacts synced to $ACTIVE_PROJECT/auto-company-tracking"
@@ -883,6 +891,9 @@ This is Cycle #$loop_count. Act decisively."
         _artifact_status="ok"
     else
         _artifact_status="fail"
+    fi
+    if [ "$_artifact_status" != "fail" ]; then
+        save_consensus_snapshot "$loop_count"
     fi
     register_new_projects "$loop_count"
     sync_artifacts "$loop_count" "$_artifact_status"
