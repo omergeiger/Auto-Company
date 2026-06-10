@@ -32,6 +32,27 @@ Humans guide direction only by editing `memories/consensus.md` under "Next Actio
 
 **Workspace rule:** all new projects must be created under `projects/`.
 
+**Project structure rule:** each project lives under `projects/<project-name>/` as a monorepo. Multi-component projects nest components inside the project folder - component folders must NOT repeat the parent name:
+```
+projects/
+  devfeed/               ← project root (maps to omergeiger/devfeed on GitHub)
+    workers/             ← CF Worker component
+    pages/               ← CF Pages component
+    python-prototype/    ← reference prototype
+  snapog/                ← single-component project
+```
+
+**Project registration:** every project folder must contain a `.project.json` at its root:
+```json
+{
+  "name": "<project-name>",
+  "repo": "omergeiger/<project-name>",
+  "artifacts_branch": "<project-name>",
+  "components": ["<component1>", "<component2>"]
+}
+```
+The framework auto-loop reads `.project.json` at startup to create GitHub repos, wire git remotes, and set up artifact tracking. Create this file before the first cycle works on a new project.
+
 ## Team Architecture
 
 14 AI agents, each modeled on top-tier expert thinking. Full definitions are in `.claude/agents/`.
@@ -182,7 +203,8 @@ All skills are under `.claude/skills/`. Any agent can use any skill when relevan
 
 - `memories/consensus.md` - cross-cycle baton; must be updated before cycle end
 - `docs/<role>/` - agent outputs
-- `projects/` - all created projects
+- `projects/<name>/` - project monorepos; each has its own GitHub repo and git history
+- Artifact history (docs, logs, consensus) committed to `<project>` branch in this repo after each cycle
 
 ## Communication Norms
 

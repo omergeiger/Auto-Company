@@ -30,6 +30,7 @@
 #   MAX_LOGS=200                # Max cycle logs to keep
 #   AUTO_LOOP_PROTECT_GITIGNORE=1
 #                               # Restore .gitignore if a cycle mutates it
+#   SINGLE_CYCLE=1              # Run exactly one cycle then exit cleanly
 # ============================================================
 
 set -euo pipefail
@@ -60,8 +61,10 @@ COOLDOWN_SECONDS="${COOLDOWN_SECONDS:-300}"
 LIMIT_WAIT_SECONDS="${LIMIT_WAIT_SECONDS:-3600}"
 MAX_LOGS="${MAX_LOGS:-200}"
 AUTO_LOOP_PROTECT_GITIGNORE="${AUTO_LOOP_PROTECT_GITIGNORE:-1}"
+SINGLE_CYCLE="${SINGLE_CYCLE:-1}"
 ARTIFACTS_BRANCH="${ARTIFACTS_BRANCH:-devfeed}"
 ARTIFACTS_WORKTREE="$PROJECT_DIR/.worktrees/${ARTIFACTS_BRANCH}"
+PROJECTS_DIR="$PROJECT_DIR/projects"
 RESOLVED_ENGINE_BIN=""
 
 if [ "$ENGINE" != "claude" ] && [ "$ENGINE" != "codex" ]; then
@@ -244,10 +247,83 @@ cleanup_accidental_root_artifacts() {
     fi
 }
 
+scan_projects() {
+    find "$PROJECTS_DIR" -maxdepth 2 -name ".project.json" 2>/dev/null
+}
+
+setup_project_repos() {
+    command -v jq >/dev/null 2>&1 || { log "WARN: jq not found, skipping project repo setup"; return; }
+    command -v gh >/dev/null 2>&1 || { log "WARN: gh not found, skipping GitHub repo setup"; return; }
+
+    local project_json project_dir project_name repo artifacts_branch worktree
+    while IFS= read -r project_json; do
+        [ -f "$project_json" ] || continue
+        project_dir="$(dirname "$project_json")"
+        project_name=$(jq -r '.name' "$project_json" 2>/dev/null) || continue
+        repo=$(jq -r '.repo' "$project_json" 2>/dev/null) || continue
+        artifacts_branch=$(jq -r 'if .artifacts_branch != null then .artifacts_branch else .name end' "$project_json" 2>/dev/null || echo "$project_name")
+
+        # Ensure GitHub repo exists
+        if ! gh repo view "$repo" >/dev/null 2>&1; then
+            log "PROJECT[$project_name]: Creating GitHub repo $repo"
+            gh repo create "$repo" --private 2>/dev/null || true
+        fi
+
+        # Ensure git is initialized in project dir
+        if [ ! -d "$project_dir/.git" ]; then
+            git -C "$project_dir" init 2>/dev/null || true
+        fi
+
+        # Ensure remote is wired
+        if ! git -C "$project_dir" remote get-url origin >/dev/null 2>&1; then
+            git -C "$project_dir" remote add origin "https://github.com/${repo}.git" 2>/dev/null || true
+            log "PROJECT[$project_name]: Wired git remote → $repo"
+        fi
+
+        # Ensure artifacts worktree exists
+        worktree="$PROJECT_DIR/.worktrees/$artifacts_branch"
+        if [ ! -f "$worktree/.git" ]; then
+            mkdir -p "$PROJECT_DIR/.worktrees"
+            if git show-ref --verify --quiet "refs/heads/$artifacts_branch" 2>/dev/null; then
+                git worktree add "$worktree" "$artifacts_branch" 2>/dev/null || true
+            else
+                git worktree add --orphan -b "$artifacts_branch" "$worktree" 2>/dev/null || true
+            fi
+            log "PROJECT[$project_name]: Set up artifacts worktree (branch: $artifacts_branch)"
+        fi
+    done < <(scan_projects)
+}
+
+commit_project_changes() {
+    local cycle_num="$1"
+    local cycle_status="$2"
+    command -v jq >/dev/null 2>&1 || return 0
+
+    local project_json project_dir project_name repo changes
+    while IFS= read -r project_json; do
+        [ -f "$project_json" ] || continue
+        project_dir="$(dirname "$project_json")"
+        project_name=$(jq -r '.name' "$project_json" 2>/dev/null) || continue
+        repo=$(jq -r '.repo' "$project_json" 2>/dev/null) || continue
+
+        git -C "$project_dir" remote get-url origin >/dev/null 2>&1 || continue
+
+        changes=$(git -C "$project_dir" status --porcelain 2>/dev/null)
+        [ -n "$changes" ] || continue
+
+        git -C "$project_dir" add -A 2>/dev/null || true
+        git -C "$project_dir" diff --cached --quiet 2>/dev/null && continue
+        git -C "$project_dir" commit -m "cycle #${cycle_num} [${cycle_status}] $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null || true
+        git -C "$project_dir" push origin HEAD 2>/dev/null || true
+        log_cycle "$cycle_num" "PROJECT" "Committed changes to $project_name → $repo"
+    done < <(scan_projects)
+}
+
 commit_artifacts() {
     local cycle_num="$1"
     local cycle_status="$2"
-    local worktree="$ARTIFACTS_WORKTREE"
+    local branch="${3:-$ARTIFACTS_BRANCH}"
+    local worktree="${4:-$PROJECT_DIR/.worktrees/$branch}"
 
     [ -f "$worktree/.git" ] || return 0
 
@@ -265,10 +341,10 @@ commit_artifacts() {
         git add docs/ logs/ memories/consensus.md .auto-loop-state 2>/dev/null || true
         git diff --cached --quiet 2>/dev/null && return
         git commit -m "cycle #${cycle_num} [${cycle_status}] $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null || true
-        git push origin "$ARTIFACTS_BRANCH" 2>/dev/null || true
+        git push origin "$branch" 2>/dev/null || true
     )
 
-    log_cycle "$cycle_num" "ARTIFACTS" "Committed to $ARTIFACTS_BRANCH branch"
+    log_cycle "$cycle_num" "ARTIFACTS" "Committed to $branch branch"
 }
 
 backup_consensus() {
@@ -653,6 +729,10 @@ if [ -n "$engine_version" ]; then
     fi
 fi
 log "Interval: ${LOOP_INTERVAL}s | Timeout: ${CYCLE_TIMEOUT_SECONDS}s | Breaker: ${MAX_CONSECUTIVE_ERRORS} errors"
+log "Single-cycle mode: $SINGLE_CYCLE"
+
+# === Project Repo Setup ===
+setup_project_repos
 
 # === Main Loop ===
 
@@ -774,9 +854,16 @@ This is Cycle #$loop_count. Act decisively."
     else
         _artifact_status="fail"
     fi
+    commit_project_changes "$loop_count" "$_artifact_status"
     commit_artifacts "$loop_count" "$_artifact_status"
 
     save_state "idle"
+
+    if [ "$SINGLE_CYCLE" = "1" ]; then
+        log_cycle "$loop_count" "DONE" "Single-cycle mode: exiting. Edit consensus.md then rerun to continue."
+        cleanup
+    fi
+
     log_cycle "$loop_count" "WAIT" "Sleeping ${LOOP_INTERVAL}s before next cycle..."
     sleep "$LOOP_INTERVAL"
 done
