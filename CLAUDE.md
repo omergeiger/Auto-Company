@@ -38,9 +38,21 @@ projects/
   myapp/                 ← project root (maps to $GITHUB_USER/myapp on GitHub)
     workers/             ← CF Worker component
     pages/               ← CF Pages component
+    docs/                ← project-facing documents (see below)
     prototype/           ← reference prototype
   another/               ← single-component project
+    docs/                ← project-facing documents
 ```
+
+**Project `docs/` folder:** every project must have a `docs/` folder for human-facing project documents. This is distinct from the Auto-Company root `docs/<role>/` folders (which hold agent analysis outputs). Use `projects/<name>/docs/` for:
+- Demo plans and presenter scripts
+- Product requirements documents (PRDs)
+- Technical specs and architecture decisions scoped to this project
+- Runbooks and deployment guides
+- Launch plans and go-to-market materials
+- Any document intended to be read by a human outside the agent loop
+
+Name files descriptively without cycle prefix (e.g. `demo-plan.md`, `prd-v1.md`, `deployment-runbook.md`).
 
 **One-project-per-branch rule:** Each company run branch targets exactly one active project. Do not create a second `projects/` folder on an active branch. To start a new project, branch from `main` first.
 
@@ -50,13 +62,14 @@ projects/
 ```
 projects/<name>/
   auto-company-tracking/
-    docs/                   <- agent outputs (mirrors docs/)
+    docs/                           <- agent outputs (mirrors root docs/)
     memories/
-      consensus.md          <- baton snapshot, updated each cycle
+      consensus.md                  <- current baton, updated each cycle
+      consensus-step-NNNN.md        <- per-cycle snapshot (immutable record)
     logs/
-      auto-loop.log
-      cycle-NNNN-YYYYMMDD-HHMMSS.log
-    .auto-loop-state        <- loop counter, last status
+      auto-loop.log                 <- human-readable operational timeline
+      cycle-NNNN-YYYYMMDD-HHMMSS.log  <- full raw output per cycle
+    .auto-loop-state                <- loop counter, last status
 ```
 
 ## Team Architecture

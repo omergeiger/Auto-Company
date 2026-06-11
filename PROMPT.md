@@ -25,13 +25,15 @@ If this cycle will produce a landing page, dashboard, marketing site, product We
 
 ### 4. Save Agent Outputs
 
-When saving agent output docs to `docs/<role>/`, name files using this pattern:
+There are two distinct doc locations — use the right one:
 
-```
-cycle-NN-<short-description>.md
-```
+**Agent analysis outputs** → `docs/<role>/cycle-NN-<short-description>.md`
 
-Where `NN` is the zero-padded two-digit cycle number from the runtime context (e.g. `cycle-03-`, `cycle-04-`). Never use `cycleN-` or `cycle-N-` without zero-padding. This ensures logs, snapshots, and docs stay in sync.
+These are the internal agent thinking records: market research, pre-mortems, unit economics, architecture decisions, etc. Name them with the zero-padded cycle prefix (`cycle-03-`, `cycle-04-`). Never use `cycleN-` without zero-padding. These mirror into `auto-company-tracking/docs/` automatically each cycle.
+
+**Project-facing documents** → `projects/<name>/docs/<descriptive-name>.md`
+
+These are human-readable deliverables scoped to the active project: demo plans, PRDs, runbooks, technical specs, launch plans, go-to-market materials. Name them descriptively without a cycle prefix (e.g. `demo-plan.md`, `prd-v1.md`, `deployment-runbook.md`). Write one whenever a cycle produces something a human outside the agent loop would need to read or act on.
 
 ### 5. Update the Consensus (required)
 
