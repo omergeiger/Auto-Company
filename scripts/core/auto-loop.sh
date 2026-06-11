@@ -93,6 +93,7 @@ if [ -z "$GITHUB_USER" ]; then
     echo "GITHUB_USER auto-detected: $GITHUB_USER"
 fi
 # Derive GITHUB_REPO from GITHUB_USER/ACTIVE_PROJECT unless explicitly overridden in config
+GITHUB_REPO="${GITHUB_REPO:-}"
 if [ -z "$GITHUB_REPO" ]; then
     if [ -n "$ACTIVE_PROJECT" ] && [ "$ACTIVE_PROJECT" != "undefined" ] && [ -n "$GITHUB_USER" ]; then
         GITHUB_REPO="${GITHUB_USER}/${ACTIVE_PROJECT}"
