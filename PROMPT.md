@@ -23,7 +23,17 @@ Read `.claude/skills/team/SKILL.md` and follow the process there to form a team 
 
 If this cycle will produce a landing page, dashboard, marketing site, product Web UI, app interface, frontend component, or any user-facing frontend deliverable, you must first read and apply `.claude/skills/frontend-design.md` before doing any layout, styling, or implementation work. Do not skip this step and do not settle for generic default styles.
 
-### 4. Update the Consensus (required)
+### 4. Save Agent Outputs
+
+When saving agent output docs to `docs/<role>/`, name files using this pattern:
+
+```
+cycle-NN-<short-description>.md
+```
+
+Where `NN` is the zero-padded two-digit cycle number from the runtime context (e.g. `cycle-03-`, `cycle-04-`). Never use `cycleN-` or `cycle-N-` without zero-padding. This ensures logs, snapshots, and docs stay in sync.
+
+### 5. Update the Consensus (required)
 
 Before the cycle ends, you **must** update `memories/consensus.md` using this format:
 
@@ -62,7 +72,7 @@ Before the cycle ends, you **must** update `memories/consensus.md` using this fo
 
 1. **Cycle 1**: Brainstorm — each agent pitches one idea, end by ranking the top 3.
 2. **Cycle 2**: Pick #1. `critic-munger` runs a Pre-Mortem, `research-thompson` validates the market, `cfo-campbell` runs the numbers. Conclude with GO / NO-GO.
-3. **Cycle 3+**: GO → create the repo and start writing code — no more discussion. NO-GO → try #2; if nothing passes, force-pick one and build it. New projects must be created under `projects/<name>/` as a monorepo (follow the project structure rule in `CLAUDE.md`). Set `ACTIVE_PROJECT=<name>` in `config/auto-company.local.env` to register the project with the framework. **One project per branch** - if a `projects/` folder already exists on this branch, build on it. To start a second project, branch from `main` first.
+3. **Cycle 3+**: GO → create the repo and start writing code — no more discussion. NO-GO → try #2; if nothing passes, force-pick one and build it. New projects must be created under `projects/<name>/` as a monorepo (follow the project structure rule in `CLAUDE.md`). Set `ACTIVE_PROJECT=<name>` in `config/auto-company.local.env` to register the project with the framework. **One project per branch** - if a `projects/` folder already exists on this branch, build on it. To start a second project, branch from `main` first. When setting `ACTIVE_PROJECT` for the first time, immediately backfill all prior artifacts into the new tracking folder before the cycle ends: `rsync -a docs/ projects/<name>/auto-company-tracking/docs/ && rsync -a memories/ projects/<name>/auto-company-tracking/memories/ && rsync -a logs/ projects/<name>/auto-company-tracking/logs/`. This ensures consensus step files and docs from pre-project cycles are not lost.
 4. **Every cycle after Cycle 2 must produce a tangible artifact** (file, repo, deployment) — pure discussion is forbidden.
 5. **Same Next Action appearing two cycles in a row** → you are stuck; change direction or narrow scope and ship something.
 6. **Any frontend deliverable** (page, UI, component, dashboard, marketing site) → you must apply `frontend-design.md` first to ensure visual and interaction quality. Generic default output is not acceptable.

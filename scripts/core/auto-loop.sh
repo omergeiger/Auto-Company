@@ -701,8 +701,13 @@ echo $$ > "$PID_FILE"
 # Trap signals for graceful shutdown
 trap cleanup SIGTERM SIGINT SIGHUP
 
-# Initialize counters
+# Initialize counters — restore loop_count from state file so cycle numbering
+# is continuous across single-cycle runs instead of resetting to 1 each time.
 loop_count=0
+if [ -f "$STATE_FILE" ]; then
+    saved_count=$(grep '^LOOP_COUNT=' "$STATE_FILE" | cut -d'=' -f2 || true)
+    loop_count="${saved_count:-0}"
+fi
 error_count=0
 
 log "=== Auto Company Loop Started (PID $$) ==="
