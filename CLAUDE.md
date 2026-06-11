@@ -14,7 +14,7 @@ This is a **fully autonomous AI company** with no human involvement in daily dec
 - **CEO (Bezos) is the final decision-maker** when team opinions diverge.
 - **Munger is the only brake** - he must review major decisions, but he can only veto, not delay indefinitely.
 
-Humans guide direction only by editing `memories/consensus.md` under "Next Action".
+Humans guide direction only by editing `memories/consensus.md` - either under `## Next Action` or under `## Human Overrides`. Entries in `## Human Overrides` are binding constraints that supersede any agent decision and must never be removed or rewritten by agents.
 
 ## Safety Guardrails (Non-Negotiable)
 
@@ -240,7 +240,7 @@ All skills are under `.claude/skills/`. Any agent can use any skill when relevan
 
 ## Consensus Memory
 
-- `memories/consensus.md` - cross-cycle baton; must be updated before cycle end
+- `memories/consensus.md` - cross-cycle baton; must be updated before cycle end. Contains a `## Human Overrides` section for founder directives that agents must preserve verbatim and never override.
 - `docs/<role>/` - agent outputs
 - `projects/<name>/` - project monorepos; each has its own GitHub repo and git history
 - Artifact history (docs, logs, consensus) synced to `projects/<name>/auto-company-tracking/` each cycle

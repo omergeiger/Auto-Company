@@ -10,7 +10,9 @@ The current consensus is pre-loaded at the end of this prompt. If it is not ther
 
 ### 2. Decide
 
-- Clear Next Action exists → execute it
+Before acting on `## Next Action`, check `## Human Overrides` in the consensus. If an override conflicts with the Next Action, the override wins — skip the blocked step and move to the next highest-priority item. Never remove or modify the `## Human Overrides` section.
+
+- Clear Next Action exists → execute it (subject to any Human Overrides)
 - Active project in progress → keep pushing (check outputs under `docs/*/`)
 - Day 0 with no direction → CEO convenes a strategy session
 - Stuck → change angle, narrow scope, or just ship
@@ -70,6 +72,9 @@ Before the cycle ends, you **must** update `memories/consensus.md` using this fo
 
 ## Next Action
 [the single most important thing to do next cycle — if any P1 issues are open, this must address them first]
+
+## Human Overrides
+[preserve exactly as found — do not modify, do not remove, do not rewrite. If no overrides exist, write "(none)"]
 
 ## Company State
 - Product: [description or TBD]

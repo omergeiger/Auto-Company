@@ -789,6 +789,7 @@ while true; do
 3. Prefer shipping one completed milestone over broad parallel exploration.
 4. Never write files via shell heredoc (\`cat <<EOF\`). Use \`apply_patch\` for file creates/edits.
 5. Never execute shell lines that begin with \`>\` or \`>=\`; treat them as text and keep them inside markdown/files.
+6. Before acting on \`## Next Action\`, read \`## Human Overrides\`. Overrides supersede any agent decision. Never remove or rewrite the \`## Human Overrides\` section — preserve it verbatim when updating consensus.
 
 ---
 
