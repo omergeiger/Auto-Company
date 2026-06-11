@@ -1,4 +1,4 @@
-.PHONY: start start-awake awake stop status last cycles monitor dashboard pause resume install uninstall team help
+.PHONY: start start-awake start-single start-single-awake awake stop status last cycles monitor dashboard pause resume install uninstall team help
 
 UNAME_S := $(shell uname -s 2>/dev/null || echo Unknown)
 ENGINE ?= claude
@@ -14,6 +14,18 @@ ifeq ($(UNAME_S),Darwin)
 else
 	@echo "start-awake is macOS-only (requires caffeinate)."
 	@echo "Use 'make start' on Linux/WSL."
+	@exit 1
+endif
+
+start-single: ## Run exactly one cycle then exit
+	SINGLE_CYCLE=1 ./scripts/core/auto-loop.sh
+
+start-single-awake: ## Run exactly one cycle and prevent macOS sleep while running
+ifeq ($(UNAME_S),Darwin)
+	caffeinate -d -i -s $(MAKE) start-single
+else
+	@echo "start-single-awake is macOS-only (requires caffeinate)."
+	@echo "Use 'make start-single' on Linux/WSL."
 	@exit 1
 endif
 
