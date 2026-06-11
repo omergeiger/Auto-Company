@@ -31,9 +31,9 @@
 #   AUTO_LOOP_PROTECT_GITIGNORE=1
 #                               # Restore .gitignore if a cycle mutates it
 #   SINGLE_CYCLE=1              # Run exactly one cycle then exit cleanly
-#   GITHUB_USER=omergeiger      # GitHub account owner for project repos
-#   ACTIVE_PROJECT=             # Active project name; auto-detected if only one project exists.
-#                               # For multiple projects, set in config/auto-company.local.env (gitignored).
+#   GITHUB_USER=your-username   # GitHub account owner for project repos (auto-detected from gh auth if unset)
+#   ACTIVE_PROJECT=undefined    # Active project name. "undefined" = new-project startup mode.
+#                               # Set to a real project name in config/auto-company.local.env (gitignored).
 # ============================================================
 
 set -euo pipefail
@@ -48,7 +48,7 @@ if [ -f "$PROJECT_DIR/config/auto-company.env" ]; then
     . "$PROJECT_DIR/config/auto-company.env"
 fi
 
-# Source local overrides (gitignored; set ACTIVE_PROJECT here when running multiple projects)
+# Source local overrides (gitignored; set ACTIVE_PROJECT=<name> here to activate a project)
 if [ -f "$PROJECT_DIR/config/auto-company.local.env" ]; then
     # shellcheck source=/dev/null
     . "$PROJECT_DIR/config/auto-company.local.env"
@@ -80,6 +80,26 @@ SINGLE_CYCLE="${SINGLE_CYCLE:-1}"
 ACTIVE_PROJECT="${ACTIVE_PROJECT:-}"
 PROJECTS_DIR="$PROJECT_DIR/projects"
 GITHUB_USER="${GITHUB_USER:-}"
+# Auto-detect GITHUB_USER from authenticated gh CLI if not set in config
+if [ -z "$GITHUB_USER" ]; then
+    if command -v gh >/dev/null 2>&1; then
+        GITHUB_USER=$(gh api user --jq '.login' 2>/dev/null || true)
+    fi
+    if [ -z "$GITHUB_USER" ]; then
+        echo "Error: GITHUB_USER is not set and could not be detected from 'gh auth'."
+        echo "Either run 'gh auth login' or set GITHUB_USER in config/auto-company.local.env."
+        exit 1
+    fi
+    echo "GITHUB_USER auto-detected: $GITHUB_USER"
+fi
+# Derive GITHUB_REPO from GITHUB_USER/ACTIVE_PROJECT unless explicitly overridden in config
+if [ -z "$GITHUB_REPO" ]; then
+    if [ -n "$ACTIVE_PROJECT" ] && [ "$ACTIVE_PROJECT" != "undefined" ] && [ -n "$GITHUB_USER" ]; then
+        GITHUB_REPO="${GITHUB_USER}/${ACTIVE_PROJECT}"
+    else
+        GITHUB_REPO=""
+    fi
+fi
 RESOLVED_ENGINE_BIN=""
 
 if [ "$ENGINE" != "claude" ] && [ "$ENGINE" != "codex" ]; then
@@ -262,98 +282,46 @@ cleanup_accidental_root_artifacts() {
     fi
 }
 
-scan_projects() {
-    find "$PROJECTS_DIR" -maxdepth 2 -name ".project.json" 2>/dev/null
-}
-
 setup_project_repos() {
-    command -v jq >/dev/null 2>&1 || { log "WARN: jq not found, skipping project repo setup"; return; }
+    [ -n "$ACTIVE_PROJECT" ] && [ "$ACTIVE_PROJECT" != "undefined" ] || return 0
     command -v gh >/dev/null 2>&1 || { log "WARN: gh not found, skipping GitHub repo setup"; return; }
 
-    local project_json project_dir project_name repo
-    while IFS= read -r project_json; do
-        [ -f "$project_json" ] || continue
-        project_dir="$(dirname "$project_json")"
-        project_name=$(jq -r '.name' "$project_json" 2>/dev/null) || continue
-        repo=$(jq -r '.repo' "$project_json" 2>/dev/null) || continue
+    local project_dir
+    project_dir="$PROJECTS_DIR/$ACTIVE_PROJECT"
 
-        # Derive full owner/repo from .project.json repo field
-        case "$repo" in
-            */*) full_repo="$repo" ;;
-            *)
-                if [ -z "$GITHUB_USER" ]; then
-                    log "WARN PROJECT[$project_name]: GITHUB_USER not set; skipping repo $repo"
-                    continue
-                fi
-                full_repo="${GITHUB_USER}/${repo}"
-                ;;
-        esac
+    if ! gh repo view "$GITHUB_REPO" >/dev/null 2>&1; then
+        log "PROJECT[$ACTIVE_PROJECT]: Creating GitHub repo $GITHUB_REPO"
+        gh repo create "$GITHUB_REPO" --private 2>/dev/null || true
+    fi
 
-        # Ensure GitHub repo exists
-        if ! gh repo view "$full_repo" >/dev/null 2>&1; then
-            log "PROJECT[$project_name]: Creating GitHub repo $full_repo"
-            gh repo create "$full_repo" --private 2>/dev/null || true
-        fi
+    if [ ! -d "$project_dir/.git" ]; then
+        git -C "$project_dir" init 2>/dev/null || true
+    fi
 
-        # Ensure git is initialized in project dir
-        if [ ! -d "$project_dir/.git" ]; then
-            git -C "$project_dir" init 2>/dev/null || true
-        fi
-
-        # Ensure remote is wired
-        if ! git -C "$project_dir" remote get-url origin >/dev/null 2>&1; then
-            git -C "$project_dir" remote add origin "https://github.com/${full_repo}.git" 2>/dev/null || true
-            log "PROJECT[$project_name]: Wired git remote → $full_repo"
-        fi
-    done < <(scan_projects)
+    if ! git -C "$project_dir" remote get-url origin >/dev/null 2>&1; then
+        git -C "$project_dir" remote add origin "https://github.com/${GITHUB_REPO}.git" 2>/dev/null || true
+        log "PROJECT[$ACTIVE_PROJECT]: Wired git remote → $GITHUB_REPO"
+    fi
 }
 
 commit_project_changes() {
     local cycle_num="$1"
     local cycle_status="$2"
-    command -v jq >/dev/null 2>&1 || return 0
+    [ -n "$ACTIVE_PROJECT" ] && [ "$ACTIVE_PROJECT" != "undefined" ] || return 0
 
-    local project_json project_dir project_name repo full_repo changes
-    while IFS= read -r project_json; do
-        [ -f "$project_json" ] || continue
-        project_dir="$(dirname "$project_json")"
-        project_name=$(jq -r '.name' "$project_json" 2>/dev/null) || continue
-        repo=$(jq -r '.repo' "$project_json" 2>/dev/null) || continue
+    local project_dir changes
+    project_dir="$PROJECTS_DIR/$ACTIVE_PROJECT"
 
-        case "$repo" in
-            */*) full_repo="$repo" ;;
-            *) full_repo="${GITHUB_USER:+${GITHUB_USER}/}${repo}" ;;
-        esac
+    git -C "$project_dir" remote get-url origin >/dev/null 2>&1 || return 0
 
-        git -C "$project_dir" remote get-url origin >/dev/null 2>&1 || continue
+    changes=$(git -C "$project_dir" status --porcelain 2>/dev/null)
+    [ -n "$changes" ] || return 0
 
-        changes=$(git -C "$project_dir" status --porcelain 2>/dev/null)
-        [ -n "$changes" ] || continue
-
-        git -C "$project_dir" add -A 2>/dev/null || true
-        git -C "$project_dir" diff --cached --quiet 2>/dev/null && continue
-        git -C "$project_dir" commit -m "cycle #${cycle_num} [${cycle_status}] $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null || true
-        git -C "$project_dir" push origin HEAD 2>/dev/null || true
-        log_cycle "$cycle_num" "PROJECT" "Committed changes to $project_name → $full_repo"
-    done < <(scan_projects)
-}
-
-register_new_projects() {
-    local cycle_num="$1"
-    command -v jq >/dev/null 2>&1 || return 0
-
-    local dir project_name
-    while IFS= read -r -d '' dir; do
-        [ -f "$dir/.project.json" ] && continue
-        project_name="$(basename "$dir")"
-        log "PROJECT: Auto-registering new project dir '$project_name'"
-        jq -n \
-            --arg name "$project_name" \
-            --arg repo "$project_name" \
-            '{"name": $name, "repo": $repo, "components": []}' \
-            > "$dir/.project.json" 2>/dev/null || true
-        log_cycle "$cycle_num" "PROJECT" "Created .project.json for $project_name"
-    done < <(find "$PROJECTS_DIR" -maxdepth 1 -mindepth 1 -type d -print0 2>/dev/null)
+    git -C "$project_dir" add -A 2>/dev/null || true
+    git -C "$project_dir" diff --cached --quiet 2>/dev/null && return 0
+    git -C "$project_dir" commit -m "cycle #${cycle_num} [${cycle_status}] $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null || true
+    git -C "$project_dir" push origin HEAD 2>/dev/null || true
+    log_cycle "$cycle_num" "PROJECT" "Committed changes to $ACTIVE_PROJECT → $GITHUB_REPO"
 }
 
 save_consensus_snapshot() {
@@ -367,7 +335,7 @@ save_consensus_snapshot() {
 sync_artifacts() {
     local cycle_num="$1"
     local cycle_status="$2"
-    [ -n "$ACTIVE_PROJECT" ] || return 0
+    [ -n "$ACTIVE_PROJECT" ] && [ "$ACTIVE_PROJECT" != "undefined" ] || return 0
 
     local tracking_dir="$PROJECTS_DIR/$ACTIVE_PROJECT/auto-company-tracking"
     mkdir -p "$tracking_dir/docs" "$tracking_dir/logs" "$tracking_dir/memories"
@@ -768,15 +736,10 @@ log "Single-cycle mode: $SINGLE_CYCLE"
 setup_project_repos
 
 # === Active Project Guard ===
-_project_count=$(scan_projects | wc -l | tr -d ' ')
-if [ -z "$ACTIVE_PROJECT" ] && [ "$_project_count" -gt 1 ]; then
-    log "Error: Multiple projects found but ACTIVE_PROJECT is not set."
-    log "Set ACTIVE_PROJECT in config/auto-company.env and restart."
-    exit 1
-fi
-if [ -z "$ACTIVE_PROJECT" ] && [ "$_project_count" -eq 1 ]; then
-    ACTIVE_PROJECT=$(jq -r '.name' "$(scan_projects)" 2>/dev/null || true)
-    log "ACTIVE_PROJECT auto-set to: $ACTIVE_PROJECT"
+if [ -z "$ACTIVE_PROJECT" ] || [ "$ACTIVE_PROJECT" = "undefined" ]; then
+    log "ACTIVE_PROJECT=undefined — new-project startup mode. AI will select a project this cycle."
+else
+    log "ACTIVE_PROJECT=$ACTIVE_PROJECT"
 fi
 
 # === Main Loop ===
@@ -804,6 +767,11 @@ while true; do
     # Build prompt with consensus pre-injected
     PROMPT=$(cat "$PROMPT_FILE")
     CONSENSUS=$(cat "$CONSENSUS_FILE" 2>/dev/null || echo "No consensus file found. This is the very first cycle.")
+    if [ -z "$ACTIVE_PROJECT" ] || [ "$ACTIVE_PROJECT" = "undefined" ]; then
+        PROJECT_CONTEXT="Active project: none. This is a new-project startup. Decide on a project this cycle, create it under projects/<name>/, and set ACTIVE_PROJECT=<name> in config/auto-company.local.env."
+    else
+        PROJECT_CONTEXT="Active project: $ACTIVE_PROJECT | GitHub repo: $GITHUB_REPO"
+    fi
     FULL_PROMPT="$PROMPT
 
 ---
@@ -823,6 +791,8 @@ while true; do
 $CONSENSUS
 
 ---
+
+$PROJECT_CONTEXT
 
 This is Cycle #$loop_count. Act decisively."
 
@@ -901,7 +871,6 @@ This is Cycle #$loop_count. Act decisively."
     if [ "$_artifact_status" != "fail" ]; then
         save_consensus_snapshot "$loop_count"
     fi
-    register_new_projects "$loop_count"
     sync_artifacts "$loop_count" "$_artifact_status"
     commit_project_changes "$loop_count" "$_artifact_status"
 

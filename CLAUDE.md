@@ -42,16 +42,6 @@ projects/
   another/               ← single-component project
 ```
 
-**Project registration:** every project folder must contain a `.project.json` at its root:
-```json
-{
-  "name": "<project-name>",
-  "repo": "<project-name>",
-  "components": ["<component1>", "<component2>"]
-}
-```
-The framework auto-loop reads `.project.json` at startup to create GitHub repos and wire git remotes. Create this file before the first cycle works on a new project.
-
 **One-project-per-branch rule:** Each company run branch targets exactly one active project. Do not create a second `projects/` folder on an active branch. To start a new project, branch from `main` first.
 
 **Usage model:** Fork this repo for a new company. Branch from `main` for a new project run within the same company.
