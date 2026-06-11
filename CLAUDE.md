@@ -39,9 +39,13 @@ projects/
     workers/             ← CF Worker component
     pages/               ← CF Pages component
     product-docs/        ← project-facing documents (see below)
+    known-issues/        ← bug and issue tracker (see below)
+      resolved/          ← resolved issues (moved here when fixed)
     prototype/           ← reference prototype
   another/               ← single-component project
     product-docs/        ← project-facing documents
+    known-issues/
+      resolved/
 ```
 
 **Project `product-docs/` folder:** every project must have a `product-docs/` folder for human-facing project documents. Named `product-docs/` to distinguish it from the Auto-Company root `docs/<role>/` folders (which hold agent analysis outputs). Use `projects/<name>/product-docs/` for:
@@ -53,6 +57,22 @@ projects/
 - Any document intended to be read by a human outside the agent loop
 
 Name files descriptively without cycle prefix (e.g. `demo-plan.md`, `prd-v1.md`, `deployment-runbook.md`).
+
+**Known issues system:** every project has a `known-issues/` folder for tracking bugs and issues. Both agents and humans can file issues. Use `known-issues/TEMPLATE.md` as the format guide.
+
+File naming: `YYYYMMDD-short-slug.md` (e.g. `20260611-ping-returns-404.md`). Files sort chronologically and are easy to reference from consensus.
+
+Priority levels:
+- **P1 — Critical:** blocks all further development. Must be fixed before any other work proceeds.
+- **P2 — Known issue:** real bug or gap, but does not block development. Fix when capacity allows.
+- **P3 — Improvement:** nice-to-have. No urgency.
+
+Lifecycle:
+1. Issue filed as `status: open` in `known-issues/`
+2. Agent commits to fixing it → sets `status: in-progress` and adds partial notes to `## Fix Notes`
+3. Issue resolved → sets `status: resolved`, fills `resolved` date and `cycle_resolved`, moves file to `known-issues/resolved/`
+
+Both the `status: resolved` field and the move to `resolved/` are required on close — the field makes files searchable, the move keeps the active folder clean.
 
 **One-project-per-branch rule:** Each company run branch targets exactly one active project. Do not create a second `projects/` folder on an active branch. To start a new project, branch from `main` first.
 

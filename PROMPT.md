@@ -37,6 +37,13 @@ These are human-readable deliverables scoped to the active project: demo plans, 
 
 ### 5. Update the Consensus (required)
 
+Before writing consensus, scan `projects/<name>/known-issues/` for all files with `status: open` or `status: in-progress`. Then:
+
+1. Populate `## Known Issues` with every open/in-progress issue — priority, filename link, one-line description.
+2. If any **P1** issue exists, it must be the first item in `## Next Action`, stated as a blocker. No other work advances until it is resolved.
+3. If an issue was fixed this cycle, mark it `status: resolved` in the file, add the `resolved` date and `cycle_resolved` field, populate `## Fix Notes`, then move the file to `known-issues/resolved/`. Remove it from `## Known Issues` in consensus.
+4. If you discovered a new bug this cycle, create a new issue file in `known-issues/` before writing consensus so it is captured immediately.
+
 Before the cycle ends, you **must** update `memories/consensus.md` using this format:
 
 ```markdown
@@ -57,8 +64,12 @@ Before the cycle ends, you **must** update `memories/consensus.md` using this fo
 ## Active Projects
 - [project]: [status] — [next step]
 
+## Known Issues
+- [P1/P2/P3] [filename](../projects/<name>/known-issues/<file>) — one-line description
+- (none) if no open issues
+
 ## Next Action
-[the single most important thing to do next cycle]
+[the single most important thing to do next cycle — if any P1 issues are open, this must address them first]
 
 ## Company State
 - Product: [description or TBD]
