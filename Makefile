@@ -1,4 +1,4 @@
-.PHONY: start start-awake start-single start-single-awake awake stop status last cycles monitor dashboard pause resume install uninstall team help
+.PHONY: start start-awake start-single start-single-awake awake stop status last cycles monitor dashboard pause resume install uninstall team flush-run help
 
 UNAME_S := $(shell uname -s 2>/dev/null || echo Unknown)
 ENGINE ?= claude
@@ -106,6 +106,9 @@ team: ## Start selected engine interactive session (ENGINE=claude|codex)
 	cd "$(CURDIR)" && "$$engine"
 
 # === Maintenance ===
+
+flush-run: ## Flush all run artifacts after verifying active project is backed up and pushed
+	./scripts/core/flush-run.sh
 
 clean-logs: ## Remove all cycle logs
 	rm -f logs/cycle-*.log logs/auto-loop.log.old
