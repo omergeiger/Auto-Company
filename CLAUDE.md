@@ -38,13 +38,13 @@ projects/
   myapp/                 ← project root (maps to $GITHUB_USER/myapp on GitHub)
     workers/             ← CF Worker component
     pages/               ← CF Pages component
-    docs/                ← project-facing documents (see below)
+    product-docs/        ← project-facing documents (see below)
     prototype/           ← reference prototype
   another/               ← single-component project
-    docs/                ← project-facing documents
+    product-docs/        ← project-facing documents
 ```
 
-**Project `docs/` folder:** every project must have a `docs/` folder for human-facing project documents. This is distinct from the Auto-Company root `docs/<role>/` folders (which hold agent analysis outputs). Use `projects/<name>/docs/` for:
+**Project `product-docs/` folder:** every project must have a `product-docs/` folder for human-facing project documents. Named `product-docs/` to distinguish it from the Auto-Company root `docs/<role>/` folders (which hold agent analysis outputs). Use `projects/<name>/product-docs/` for:
 - Demo plans and presenter scripts
 - Product requirements documents (PRDs)
 - Technical specs and architecture decisions scoped to this project

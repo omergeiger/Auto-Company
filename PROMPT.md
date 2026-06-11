@@ -31,7 +31,7 @@ There are two distinct doc locations — use the right one:
 
 These are the internal agent thinking records: market research, pre-mortems, unit economics, architecture decisions, etc. Name them with the zero-padded cycle prefix (`cycle-03-`, `cycle-04-`). Never use `cycleN-` without zero-padding. These mirror into `auto-company-tracking/docs/` automatically each cycle.
 
-**Project-facing documents** → `projects/<name>/docs/<descriptive-name>.md`
+**Project-facing documents** → `projects/<name>/product-docs/<descriptive-name>.md`
 
 These are human-readable deliverables scoped to the active project: demo plans, PRDs, runbooks, technical specs, launch plans, go-to-market materials. Name them descriptively without a cycle prefix (e.g. `demo-plan.md`, `prd-v1.md`, `deployment-runbook.md`). Write one whenever a cycle produces something a human outside the agent loop would need to read or act on.
 
