@@ -1,78 +1,78 @@
-# Auto Company 索引
+# Auto Company Index
 
-## 目标
+## Purpose
 
-本文件用于快速定位仓库目录结构、脚本职责和调用关系，便于后续维护与排障。
+This file provides a quick reference for the repository's directory structure, script responsibilities, and call chains - for maintenance and troubleshooting.
 
-## 目录结构（当前）
+## Directory Structure (current)
 
-### 实现目录（唯一脚本入口）
+### Implementation Directories (canonical script entry points)
 
-- `scripts/windows/`: Windows 控制、保活、自启脚本实现
-- `scripts/core/`: 主循环与核心控制脚本实现
-- `scripts/wsl/`: WSL `systemd --user` 守护脚本实现
-- `scripts/macos/`: macOS `launchd` 守护脚本实现
+- `scripts/windows/`: Windows control, keep-alive, and autostart script implementations
+- `scripts/core/`: Main loop and core control script implementations
+- `scripts/wsl/`: WSL `systemd --user` daemon script implementations
+- `scripts/macos/`: macOS `launchd` daemon script implementations
 
-说明：根目录不再保留脚本包装层，执行与维护统一通过 `scripts/`。
+Note: the root directory no longer holds script wrapper shims - all execution and maintenance goes through `scripts/`.
 
-### 其他关键目录
+### Other Key Directories
 
-- `docs/`: 文档
-- `logs/`: 运行日志
-- `memories/`: 共识文件
-- `projects/`: 自动公司产出项目
+- `docs/`: Documentation
+- `logs/`: Runtime logs
+- `memories/`: Consensus files
+- `projects/`: Projects produced by the autonomous company
 
-## 核心运行逻辑（Win + WSL）
+## Core Execution Logic (Win + WSL)
 
-调用链（默认）：
+Default call chain:
 
 `scripts/windows/start-win.ps1` -> WSL `systemd --user auto-company.service` -> `scripts/core/auto-loop.sh`
 
-说明：
-- 默认引擎是 `ENGINE=claude`
-- 可通过 `.auto-loop.env` 或 `start-win.ps1 -Engine codex` 切换到 Codex
-- 不做自动引擎回退，所选引擎缺失时直接失败
+Notes:
+- Default engine is `ENGINE=claude`
+- Switch to Codex via `.auto-loop.env` or `start-win.ps1 -Engine codex`
+- No automatic engine fallback - missing engine fails immediately
 
-停止链路：
+Stop chain:
 
-`scripts/windows/stop-win.ps1` -> 停止 `auto-company.service` + 停止 `awake guardian` + 停止 `wsl anchor`
+`scripts/windows/stop-win.ps1` -> stops `auto-company.service` + stops `awake guardian` + stops `wsl anchor`
 
-## 脚本职责表（入口 / 守护 / 自启 / 诊断）
+## Script Responsibility Table (entry / daemon / autostart / diagnostics)
 
-| 类别 | 脚本路径 | 主要职责 |
+| Category | Script Path | Primary Responsibility |
 |---|---|---|
-| 入口 | `scripts/windows/start-win.ps1` | 启动 WSL daemon，写 `.auto-loop.env`（支持 `ENGINE/CLAUDE_PERMISSION_MODE/CODEX_SANDBOX_MODE`），启动防睡眠与 WSL keepalive |
-| 入口 | `scripts/windows/stop-win.ps1` | 停止 daemon 并回收防睡眠与 WSL keepalive |
-| 入口 | `scripts/windows/status-win.ps1` | 汇总 guardian/keepalive/autostart/daemon/loop 五层状态 |
-| 诊断 | `scripts/windows/monitor-win.ps1` | 实时日志 |
-| 诊断 | `scripts/windows/last-win.ps1` | 最近一轮完整输出 |
-| 诊断 | `scripts/windows/cycles-win.ps1` | 周期摘要 |
-| 诊断 | `scripts/windows/dashboard-win.ps1` | 启动本地 Web 可视化看板 |
-| 保活 | `scripts/windows/awake-guardian-win.ps1` | 运行期防睡眠（`start/stop/status/run`） |
-| 保活 | `scripts/windows/wsl-anchor-win.ps1` | 维持 WSL 会话常驻（`start/stop/status/run`） |
-| 自启 | `scripts/windows/enable-autostart-win.ps1` | 创建登录自启任务 |
-| 自启 | `scripts/windows/disable-autostart-win.ps1` | 删除登录自启任务 |
-| 自启 | `scripts/windows/autostart-status-win.ps1` | 查询自启任务状态 |
-| 守护 | `scripts/wsl/install-wsl-daemon.sh` | 安装并启用 `auto-company.service` |
-| 守护 | `scripts/wsl/uninstall-wsl-daemon.sh` | 卸载 WSL daemon |
-| 守护 | `scripts/wsl/wsl-daemon-status.sh` | 查询 WSL daemon 状态 |
-| 守护 | `scripts/macos/install-daemon.sh` | macOS launchd 安装/卸载 |
-| 核心 | `scripts/core/auto-loop.sh` | 主循环执行、熔断、日志、共识更新 |
-| 核心 | `scripts/core/monitor.sh` | 核心状态/日志输出 |
-| 核心 | `scripts/core/stop-loop.sh` | 核心停止/暂停/恢复控制 |
+| Entry | `scripts/windows/start-win.ps1` | Starts WSL daemon, writes `.auto-loop.env` (supports `ENGINE/CLAUDE_PERMISSION_MODE/CODEX_SANDBOX_MODE`), starts sleep prevention and WSL keepalive |
+| Entry | `scripts/windows/stop-win.ps1` | Stops daemon and reclaims sleep prevention and WSL keepalive |
+| Entry | `scripts/windows/status-win.ps1` | Summarizes status across all five layers: guardian / keepalive / autostart / daemon / loop |
+| Diagnostics | `scripts/windows/monitor-win.ps1` | Real-time log streaming |
+| Diagnostics | `scripts/windows/last-win.ps1` | Most recent full cycle output |
+| Diagnostics | `scripts/windows/cycles-win.ps1` | Cycle summary |
+| Diagnostics | `scripts/windows/dashboard-win.ps1` | Launches local web visualization dashboard |
+| Keep-alive | `scripts/windows/awake-guardian-win.ps1` | Prevents system sleep at runtime (`start/stop/status/run`) |
+| Keep-alive | `scripts/windows/wsl-anchor-win.ps1` | Keeps WSL session resident (`start/stop/status/run`) |
+| Autostart | `scripts/windows/enable-autostart-win.ps1` | Creates login autostart task |
+| Autostart | `scripts/windows/disable-autostart-win.ps1` | Removes login autostart task |
+| Autostart | `scripts/windows/autostart-status-win.ps1` | Queries autostart task status |
+| Daemon | `scripts/wsl/install-wsl-daemon.sh` | Installs and enables `auto-company.service` |
+| Daemon | `scripts/wsl/uninstall-wsl-daemon.sh` | Uninstalls WSL daemon |
+| Daemon | `scripts/wsl/wsl-daemon-status.sh` | Queries WSL daemon status |
+| Daemon | `scripts/macos/install-daemon.sh` | macOS launchd install/uninstall |
+| Core | `scripts/core/auto-loop.sh` | Main loop execution, circuit breaking, logging, consensus updates |
+| Core | `scripts/core/monitor.sh` | Core status/log output |
+| Core | `scripts/core/stop-loop.sh` | Core stop/pause/resume control |
 
-## 快速排障路径
+## Quick Troubleshooting Path
 
-1. 先看 `scripts/windows/status-win.ps1`
-2. 再看 `scripts/windows/dashboard-win.ps1` 或 `scripts/windows/monitor-win.ps1`
-3. 守护异常看 `scripts/wsl/wsl-daemon-status.sh`
-4. 自启异常看 `scripts/windows/autostart-status-win.ps1`（权限问题优先检查管理员 PowerShell）
+1. Start with `scripts/windows/status-win.ps1`
+2. Then check `scripts/windows/dashboard-win.ps1` or `scripts/windows/monitor-win.ps1`
+3. For daemon issues, check `scripts/wsl/wsl-daemon-status.sh`
+4. For autostart issues, check `scripts/windows/autostart-status-win.ps1` (permission problems - try admin PowerShell first)
 
-## 维护规则
+## Maintenance Rules
 
-1. 新功能优先改 `scripts/` 下实现脚本。
-2. 文档变更需同步更新：
+1. New features go into the implementation scripts under `scripts/` first.
+2. Documentation changes must be synced across:
    - `README.md`
    - `README-ZH.md`
    - `docs/windows-setup.md`
-   - 本索引文件 `INDEX.md`
+   - This index file `INDEX.md`
