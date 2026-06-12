@@ -23,12 +23,20 @@ Building / Launch Ready
 ## Known Issues
 - (none)
 
+## Simulation Mode
+Active: mock HN simulation  
+Thread file: `projects/cronguard/product-docs/mock-hn-thread.md`  
+Agent: `hn-user` (`.claude/agents/hn-user.md`)  
+Wave: 0 (not yet started)  
+Purpose: test response quality and surface product gaps before real HN launch
+
 ## Next Action
-Cycle 8: Post-launch operations.
-1. **Human action required first:** Run the pre-launch checklist in `product-docs/show-hn-draft.md`, then post the Show HN.
-2. Once posted, monitor HN thread for common feedback patterns and log them.
-3. If any user signs up from HN, review their first-session behavior and identify friction points.
-4. Define paid tier structure (Human Override: "paid tier will be defined after HN launch" - this is now unblocked once HN post goes live).
+Cycle 8: Run Wave 1 of the mock HN simulation, and define paid tier structure.
+1. `hn-user` agent reads `projects/cronguard/product-docs/mock-hn-thread.md` and appends Wave 1 comments (3-4 comments, mix of skeptic / curious / minimalist personas).
+2. `operations-pg` + `marketing-godin` read the thread, draft a reply to each comment, and append replies inline. Tag each comment: feature-request / competitive-comparison / product-gap / validation.
+3. Both agents write a synthesis to `docs/operations/mock-hn-wave1-synthesis.md`: patterns found, product gaps surfaced, response quality notes.
+4. `cfo-campbell` + `sales-ross` define the paid tier structure (Human Override: now unblocked — define before HN launch). Save to `docs/cfo/paid-tier-proposal.md`.
+5. Update consensus: wave count, signals found, next action set to Wave 2.
 
 ## Human Overrides
 These directives are set by the human founder and supersede any agent decision or Next Action. Do not remove or overwrite them. Only the human can add or clear entries here.
@@ -38,8 +46,9 @@ These directives are set by the human founder and supersede any agent decision o
 - No automatic publish to HN. only generate instruction recomendations for human to act on.
 - Generally never reach out to other humans on any platform.
 
-- email draft to self : approved and sent.
-- paid tier will be defined after HN launch
+- lets mock HN announcement and have hn-user agent provide feedback after mock launch
+- proceed to define paid tier based on mock
+ 
 
 ## Company State
 - Product: CronGuard - heartbeat/cron job monitoring SaaS
@@ -57,6 +66,6 @@ These directives are set by the human founder and supersede any agent decision o
 3. Market validation proxy: researcher confirmed live entrants + displacement window; no build block required
 
 ## Open Questions
-- Paid tier structure: what price points and limits? (unblocked after HN launch per Human Override)
-- HN timing: human to choose specific weekday morning ET
+- Paid tier structure: being defined in Cycle 8 (Human Override: define before HN launch)
+- HN timing: human to choose specific weekday morning ET, after simulation complete
 - Should we add Slack alert support on paid tier as the first paid differentiator?

@@ -135,6 +135,12 @@ projects/<name>/
 |-------|------|----------|
 | `research-thompson` | Ben Thompson | Market research, competitor analysis, trend analysis, business model decomposition, demand validation |
 
+### Simulation Layer
+
+| Agent | Persona | When to Use |
+|-------|------|----------|
+| `hn-user` | HN User Simulator | Mock Hacker News comment simulation — generates realistic user feedback from multiple archetypes (skeptic, curious dev, minimalist, tech-inquisitor, PM, founder). Use only during simulation cycles, never for real posting. Reads thread file path from `## Simulation Mode` in consensus. |
+
 ## Decision Principles
 
 1. **Ship > Plan > Discuss** - if you can ship, do not over-discuss.
@@ -155,6 +161,7 @@ Team composition rules: `.claude/skills/team/SKILL.md`.
 4. **Pricing and Monetization**: `research-thompson` -> `cfo-campbell` -> `sales-ross` -> `critic-munger` -> `ceo-bezos`
 5. **Weekly Review**: `operations-pg` -> `sales-ross` -> `cfo-campbell` -> `qa-bach` -> `ceo-bezos`
 6. **Opportunity Discovery**: `research-thompson` -> `ceo-bezos` -> `critic-munger` -> `cfo-campbell`
+7. **Mock HN Simulation** (per wave): `hn-user` (write comments) -> `operations-pg` + `marketing-godin` (draft replies, tag feedback) -> `product-norman` + `ceo-bezos` (synthesize signals, update backlog). Run one wave per cycle. After Wave 3, `critic-munger` reviews the full thread for product gaps before real launch.
 
 ## Documentation Map
 
@@ -176,6 +183,7 @@ Each agent stores outputs under `docs/<role>/`:
 | `sales-ross` | `docs/sales/` | Funnel analysis, conversion plans, pricing playbooks |
 | `cfo-campbell` | `docs/cfo/` | Financial models, pricing analyses, unit economics |
 | `research-thompson` | `docs/research/` | Market/competitor/trend intelligence |
+| `hn-user` | `projects/<name>/product-docs/mock-hn-thread.md` | Appends comments to the active mock thread file; signals go to the `## Signal Log` block in the same file |
 
 ## Tooling
 

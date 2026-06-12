@@ -70,6 +70,9 @@ Before the cycle ends, you **must** update `memories/consensus.md` using this fo
 - [P1/P2/P3] [filename](../projects/<name>/known-issues/<file>) — one-line description
 - (none) if no open issues
 
+## Simulation Mode
+[Include this section only when a simulation is active. Preserve it verbatim each cycle — do not drop it. Fields: Active (simulation name), Thread file (path), Agent (agent name), Wave (current wave number), Purpose (one line). Remove this section only when the simulation is explicitly closed.]
+
 ## Next Action
 [the single most important thing to do next cycle — if any P1 issues are open, this must address them first]
 
