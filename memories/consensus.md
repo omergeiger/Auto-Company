@@ -1,58 +1,62 @@
 # Auto Company Consensus
 
 ## Last Updated
-2026-06-12 — Cycle #6 complete — P1 auth bug fixed, outreach email drafted
+2026-06-12 - Cycle #7 complete - 5-monitor free tier cap shipped, HN launch checklist ready
 
 ## Current Phase
-Building / Early Growth
+Building / Launch Ready
 
 ## What We Did This Cycle
-- Fixed P1 bug: registration flow was broken — `show()` sets `style.display = ''` which fell back to CSS `display:none` rules for `#dashboard` and `.key-reveal`; fixed by removing the CSS rules and using inline `style="display:none"` on the elements instead
-- Moved resolved P1 issue to `known-issues/resolved/`
-- Replaced bare empty state with a 3-step getting-started guide (create monitor, copy ping URL, add crontab line) — makes first-use onboarding obvious
-- Drafted and saved Show HN post to `product-docs/show-hn-draft.md`
-- Created Gmail draft to omergeiger@gmail.com with dashboard link and 2-sentence pitch (per Human Override: send to founder only)
-- Deployed all changes to CF Pages, pushed to GitHub
+- Implemented 5-monitor free tier cap in `handleMonitorCreate`: queries `COUNT(*)` before insert, returns `403` with clear message if user already has 5+ monitors
+- Deployed updated worker to `cronguard-workers.omergeiger.workers.dev` (Version ID: 57685ab6)
+- Expanded `product-docs/show-hn-draft.md` with a detailed pre-launch checklist, suggested HN responses, and timing guidance for the human to act on
+- No new known issues found
 
 ## Key Decisions Made
-- **P1 first** — auth was broken before any real user could register; fixed before outreach
-- **Inline style over CSS rule** for elements toggled by show()/hide() — the `show()` pattern requires no competing CSS rule to work correctly
-- **Email is a draft** — Human Override restricts sending to omergeiger@gmail.com only; draft created in Gmail for review and send
+- **5-monitor cap enforced server-side** - constant `FREE_TIER_MONITOR_LIMIT = 5` at module scope, easy to raise when paid tiers ship
+- **403 error message names the limit explicitly** - "Free tier limit reached (5 monitors max). Upgrade to add more." - tells the user exactly what happened and implies there is an upgrade path
+- **HN launch is human-triggered** - per Human Override, no auto-post; detailed checklist written so human can launch confidently without needing to ask for guidance
 
 ## Active Projects
-- **cronguard**: Building — auth fixed, dashboard live with getting-started guide; next focus is first real user registration and HN launch
+- **cronguard**: Launch-ready - auth fixed, free tier cap enforced, dashboard live; waiting on human to run pre-launch checklist and post to HN
 
 ## Known Issues
 - (none)
 
 ## Next Action
-Cycle 7: Launch CronGuard publicly and get the first real non-test user.
-1. Review and send the Gmail draft (id: r-763030244258226664) to self first — confirm the auth + monitor creation flow works end-to-end.
-2. Enforce the 5-monitor free tier cap in the API (P2 scope control: return 403 with a clear message when user has 5+ monitors).
-3. Post the Show HN draft from `product-docs/show-hn-draft.md` — schedule for a weekday morning ET.
+Cycle 8: Post-launch operations.
+1. **Human action required first:** Run the pre-launch checklist in `product-docs/show-hn-draft.md`, then post the Show HN.
+2. Once posted, monitor HN thread for common feedback patterns and log them.
+3. If any user signs up from HN, review their first-session behavior and identify friction points.
+4. Define paid tier structure (Human Override: "paid tier will be defined after HN launch" - this is now unblocked once HN post goes live).
 
 ## Human Overrides
 These directives are set by the human founder and supersede any agent decision or Next Action. Do not remove or overwrite them. Only the human can add or clear entries here.
 
 - **Domain purchase:** do not buy `cronguard.dev` or any paid domain until explicitly requested. Skip domain-related steps and proceed to the next highest-priority item.
 - you may draft the email. you may send it only to me omergeiger@gmail.com.
+- No automatic publish to HN. only generate instruction recomendations for human to act on.
+- Generally never reach out to other humans on any platform.
+
+- email draft to self : approved and sent.
+- paid tier will be defined after HN launch
 
 ## Company State
-- Product: CronGuard — heartbeat/cron job monitoring SaaS
+- Product: CronGuard - heartbeat/cron job monitoring SaaS
 - Tech Stack: Cloudflare Workers / D1 / CF Pages / Resend (pending domain)
 - Revenue: $0
-- Users: 0 (auth was broken until Cycle 6; should be functional now)
+- Users: 0 (HN launch pending)
 - Workers API: https://cronguard-workers.omergeiger.workers.dev
 - Landing page: https://cronguard-pages.pages.dev
 - Dashboard: https://cronguard-pages.pages.dev/dashboard.html
 - Repo: https://github.com/omergeiger/cronguard
 
 ## Critic Conditions (must hold throughout build)
-1. Free tier strictly limited (5 monitors max, email only — no Slack on free)
+1. Free tier strictly limited (5 monitors max, email only - no Slack on free) - **NOW ENFORCED**
 2. CF-native features are product-level (npm SDK, CF Cron auto-detection), not just marketing copy
 3. Market validation proxy: researcher confirmed live entrants + displacement window; no build block required
 
 ## Open Questions
-- 5-monitor cap not yet enforced in API — add in Cycle 7
-- HN post timing: weekday morning ET, ideally after confirming auth flow works
-- Should paid tier be defined before HN launch to capture upgrade intent?
+- Paid tier structure: what price points and limits? (unblocked after HN launch per Human Override)
+- HN timing: human to choose specific weekday morning ET
+- Should we add Slack alert support on paid tier as the first paid differentiator?
